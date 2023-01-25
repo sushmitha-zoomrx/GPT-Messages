@@ -32,7 +32,12 @@ def load_cgpt():
 
 
 def ChatGPT_Generation(prompt):
-    api = load_cgpt()
+    try:
+        api = load_cgpt()
+    except:
+        import traceback
+        traceback.print_exc()
+        st.error('ChatGPT load error!')
     try:
         return api.send_message(prompt)['message']
     except:
