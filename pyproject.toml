@@ -7,11 +7,12 @@ authors = ["sushmitha.jagannathan <sushmitha.jagannathan@zoomrx.com>"]
 [tool.poetry.dependencies]
 python = "~3.7.13"
 pandas = "~1.2.1"
-pyChatGPT = "^0.4.2"
+pyChatGPT = "0.4.2"
 sentence-transformers = "~2.2.0"
 streamlit = ">=1.8.1"
 textblob = "~0.17.1"
 xgboost = "~1.6.0"
+regex = "^2022.10.31"
 
 [tool.poetry.dev-dependencies]
 icecream = "^2.1.3"
