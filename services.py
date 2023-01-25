@@ -24,9 +24,10 @@ def load_models():
     return b_model, m_model, d_model, emb_model
 
 
-@st.experimental_memo
+@st.experimental_singleton
 def load_cgpt():
-    cg_api = ChatGPT(session_token=SESSION_TOKEN)
+    # cg_api = ChatGPT(session_token=SESSION_TOKEN)
+    cg_api = ChatGPT(auth_type='google', email='susisumi23@gmail.com', password='Sush2309$')
     print('API created')
     return cg_api
 
