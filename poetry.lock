@@ -1115,18 +1115,19 @@ numpy = ">=1.16.6"
 
 [[package]]
 name = "pychatgpt"
-version = "0.4.3.3"
+version = "0.4.2"
 description = "An unofficial Python wrapper for OpenAI's ChatGPT API"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "pyChatGPT-0.4.3.3-py3-none-any.whl", hash = "sha256:ce737e2ace30af107e577b65d21f5dc419102eb0be7c551281d7936f11f4bc2e"},
-    {file = "pyChatGPT-0.4.3.3.tar.gz", hash = "sha256:33671607fd70a4f2efdb0a9d0915d117f0ba1e266643b47ffa207e4c23f99612"},
+    {file = "pyChatGPT-0.4.2-py3-none-any.whl", hash = "sha256:472a2fe8a4f5ba45a5f8df37b69f6f9e69b36df16b2a961019ef82cd27b5c9d5"},
+    {file = "pyChatGPT-0.4.2.tar.gz", hash = "sha256:3e8fe65cc41d114f9ad6e25ae96e3e5fdc51af4b92264120637274be39f3674a"},
 ]
 
 [package.dependencies]
 markdownify = ">=0.11.6"
+PyVirtualDisplay = ">=3.0"
 undetected-chromedriver = ">=3.2.1"
 
 [[package]]
@@ -1280,6 +1281,18 @@ files = [
 [package.dependencies]
 "backports.zoneinfo" = {version = "*", markers = "python_version >= \"3.6\" and python_version < \"3.9\""}
 tzdata = {version = "*", markers = "python_version >= \"3.6\""}
+
+[[package]]
+name = "pyvirtualdisplay"
+version = "3.0"
+description = "python wrapper for Xvfb, Xephyr and Xvnc"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "PyVirtualDisplay-3.0-py3-none-any.whl", hash = "sha256:40d4b8dfe4b8de8552e28eb367647f311f88a130bf837fe910e7f180d5477f0e"},
+    {file = "PyVirtualDisplay-3.0.tar.gz", hash = "sha256:09755bc3ceb6eb725fb07eca5425f43f2358d3bf08e00d2a9b792a1aedd16159"},
+]
 
 [[package]]
 name = "pyyaml"
@@ -2414,4 +2427,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.7.13"
-content-hash = "2728669ddedfabba5f6d89b457fabc3fa92ca1a6c92bc4601ac199e658aaa460"
+content-hash = "05341ce1bc68b0490fe98b2939d73f3b97f33a0171c6c84ae072b582b9f2dbf4"
