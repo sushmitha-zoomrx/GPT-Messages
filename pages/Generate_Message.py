@@ -1,6 +1,6 @@
 import streamlit as st
 
-from constants import IMAGE
+from constants import BENCHMARKS, IMAGE
 from features import list_messages
 
 st.set_page_config(
@@ -21,27 +21,24 @@ st.code('"Create messages for Opdivo in NSCLC using : In 14.1 months, half the p
 if prompt:
     print(prompt)
     res = list_messages(prompt)
-    benchmarks = {
-        "Believability": "63 %",
-        "Differentiation": "55 %",
-        "Motivation": "59 %",
-        "Overall_Score": "59 %"
-    }
-    if len(res) == 1:
-        res = res.to_dict(orient='records')
-        st.subheader('Generated Message')
-        st.markdown(f"<p>{res[0]['Message']}<p>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.header('Predicted Scores')
-            for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
-                col1.metric(key, res[0][key])
-        with col2:
+    if res is not None:
+        if len(res) == 1:
+            res = res.to_dict(orient='records')
+            st.subheader('Generated Message')
+            st.markdown(f"<p>{res[0]['Message']}<p>", unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.header('Predicted Scores')
+                for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
+                    col1.metric(key, res[0][key])
+            with col2:
+                st.header('Industry Averages')
+                for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
+                    col2.metric(key, BENCHMARKS[key])
+        else:
+            st.dataframe(data=res, use_container_width=False)
             st.header('Industry Averages')
             for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
-                col2.metric(key, benchmarks[key])
+                st.metric(key, BENCHMARKS[key])
     else:
-        st.dataframe(data=res, use_container_width=False)
-        st.header('Industry Averages')
-        for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
-            st.metric(key, benchmarks[key])
+        st.markdown('Try someother instruction, or use the same sometime later!')

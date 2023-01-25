@@ -38,6 +38,7 @@ def ChatGPT_Generation(prompt):
         import traceback
         traceback.print_exc()
         st.error('ChatGPT load error!')
+        return ''
     try:
         return api.send_message(prompt)['message']
     except:
