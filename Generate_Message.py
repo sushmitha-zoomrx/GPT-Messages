@@ -39,35 +39,17 @@ if len(valid_email) > 0:
 
         res = list_messages(prompt)
         if res is not None:
-            if len(res) == 1:
-                res = res.to_dict(orient='records')
-                st.subheader('Generated Message')
-                st.markdown(f"<p>{res[0]['Message']}<p>", unsafe_allow_html=True)
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.header('Predicted Scores')
-                    for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
-                        col1.metric(key, res[0][key])
-                with col2:
-                    st.header('Industry Averages')
-                    for key in ['Believability', 'Differentiation', 'Motivation', 'Overall_Score']:
-                        col2.metric(key, BENCHMARKS[key])
 
-            else:
-                # CSS to inject contained in a string
-                hide_table_row_index = """
-                            <style>
-                            thead tr th:first-child {display:none}
-                            tbody th {display:none}
-                            </style>
-                            """
+            hide_table_row_index = """
+                        <style>
+                        thead tr th:first-child {display:none}
+                        tbody th {display:none}
+                        </style>
+                        """
 
-                # Inject CSS with Markdown
-                st.markdown(hide_table_row_index, unsafe_allow_html=True)
+            st.markdown(hide_table_row_index, unsafe_allow_html=True)
 
-                # Display a static table
-                st.table(res)
-                # st.dataframe(data=res, use_container_width=False)
+            st.table(res)
 
             percentile_text = (
                 "To improve its performance, use precise messages with data & qualifiers as relevant."

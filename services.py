@@ -77,7 +77,7 @@ def generate_messages(prompt):
         })
         for msg in generated_messages:
             df = df.append({'Message': msg, **predict_scores(msg)}, ignore_index=True)
-        return df.sort_values('Overall_Score \n(ZoomRx Industry Average is 59 %)', ascending=False)
+        return df.sort_values('Overall Score \n(ZoomRx Industry Average is 59 %)', ascending=False)
     except:
         import traceback
         traceback.print_exc()
