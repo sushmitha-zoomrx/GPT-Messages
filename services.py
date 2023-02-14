@@ -1,18 +1,20 @@
 import re
+import subprocess
+from subprocess import PIPE
 
 import numpy as np
+import openai
 import pandas as pd
 import scipy
 import streamlit as st
-from pyChatGPT import ChatGPT
 from sentence_transformers import SentenceTransformer
 from textblob import TextBlob
 from xgboost import XGBRegressor
 
-from constants import SESSION_TOKEN
+from constants import GPT3_API_KEY
 
 
-@st.experimental_singleton
+@st.cache_resource
 def load_models():
     b_model = XGBRegressor({'nthread': 4})
     b_model.load_model("./models/0001.model")
@@ -24,51 +26,64 @@ def load_models():
     return b_model, m_model, d_model, emb_model
 
 
-@st.experimental_singleton
-def load_cgpt():
-    # cg_api = ChatGPT(session_token=SESSION_TOKEN)
-    cg_api = ChatGPT(auth_type='google', email='susisumi23@gmail.com', password='Sush2309$')
-    print('API created')
-    return cg_api
-
-
-def ChatGPT_Generation(prompt):
+def GPT3_Generation(prompt, max_tokens, i):
+    openai.api_key = GPT3_API_KEY
     try:
-        api = load_cgpt()
-    except:
-        import traceback
-        traceback.print_exc()
-        st.error('ChatGPT load error!')
-        return ''
-    try:
-        return api.send_message(prompt)['message']
-    except:
-        api.reset_conversation()
-        api.clear_conversations()
-        api.refresh_chat_page()
-        return api.send_message(prompt)['message']
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            temperature=0.7,
+            top_p=1,
+            max_tokens=max_tokens,
+            frequency_penalty=0,
+            presence_penalty=0
+        )
+    except Exception as e:
+        if i <= 5 and 'server had an error' in str(e):
+            st.markdown(f'Server is down, Hence re-generating... {i}')
+            i += 1
+            return GPT3_Generation(prompt, max_tokens=2000, i=i)
+        else:
+            st.error('GPT Server is down. Please try again later')
+            return None
+    return response.choices[0].text
 
 
 def generate_messages(prompt):
     try:
-        msgs = ChatGPT_Generation(prompt)
+        print(prompt)
+        st.markdown('Generating messages...')
+        msgs = GPT3_Generation(prompt, max_tokens=2000, i=1)
+        if not msgs:
+            return
+        st.markdown('Generated, Predicting the scores of the messages...')
+        print('Generated!!!!!!!')
+        print(msgs)
         generated_messages = []
         sentences = re.split('^\d+\.+ ', msgs, flags=re.M)
         for i, text in enumerate(sentences):
             msg = text.strip()
             if len(msg) > 5:
                 generated_messages.append(msg)
+        print('List of msgs : ')
         print(generated_messages)
-        df = pd.DataFrame()
+        df = pd.DataFrame({
+            'Message': [],
+            'Believability \n(ZoomRx Industry Average is 63 %)': [],
+            'Differentiation \n(ZoomRx Industry Average is 55 %)': [],
+            'Motivation \n(ZoomRx Industry Average is 59 %)': [],
+            'Overall Score \n(ZoomRx Industry Average is 59 %)': [],
+            'Rank Percentile': []
+        })
         for msg in generated_messages:
             df = df.append({'Message': msg, **predict_scores(msg)}, ignore_index=True)
-        return df
+        return df.sort_values('Overall_Score \n(ZoomRx Industry Average is 59 %)', ascending=False)
     except:
         import traceback
         traceback.print_exc()
 
 
-@st.experimental_singleton
+@st.cache_resource
 def read_data():
     data_df = pd.read_csv('./input_files/data.csv')
     return data_df
@@ -103,9 +118,9 @@ def predict_scores(message):
     B_score, M_Score, D_Score = b_model.predict(X_test)[0], m_model.predict(X_test)[0], d_model.predict(X_test)[0]
     overall_score = np.cbrt(B_score * M_Score * D_Score)
     return {
-        'Believability': round_off_score(B_score),
-        'Differentiation': round_off_score(D_Score),
-        'Motivation': round_off_score(M_Score),
-        'Overall_Score': round_off_score(overall_score),
-        'Rank_Percentile': int(calc_percentile(overall_score))
+        'Believability \n(ZoomRx Industry Average is 63 %)': round_off_score(B_score),
+        'Differentiation \n(ZoomRx Industry Average is 55 %)': round_off_score(D_Score),
+        'Motivation \n(ZoomRx Industry Average is 59 %)': round_off_score(M_Score),
+        'Overall Score \n(ZoomRx Industry Average is 59 %)': round_off_score(overall_score),
+        'Rank Percentile': int(calc_percentile(overall_score))
     }
