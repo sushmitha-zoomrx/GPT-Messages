@@ -1,6 +1,4 @@
 import re
-import subprocess
-from subprocess import PIPE
 
 import numpy as np
 import openai
@@ -11,7 +9,7 @@ from sentence_transformers import SentenceTransformer
 from textblob import TextBlob
 from xgboost import XGBRegressor
 
-from constants import GPT3_API_KEY
+from constants import GPT3_API_KEY, GPT3_PROMPT
 
 
 @st.cache_resource
@@ -31,7 +29,7 @@ def GPT3_Generation(prompt, max_tokens, i):
     try:
         response = openai.Completion.create(
             engine="text-davinci-003",
-            prompt=prompt,
+            prompt=GPT3_PROMPT.format(input=prompt),
             temperature=0.7,
             top_p=1,
             max_tokens=max_tokens,
@@ -40,9 +38,9 @@ def GPT3_Generation(prompt, max_tokens, i):
         )
     except Exception as e:
         if i <= 5 and 'server had an error' in str(e):
-            st.markdown(f'Server is down, Hence re-generating... {i}')
-            i += 1
-            return GPT3_Generation(prompt, max_tokens=2000, i=i)
+            with st.spinner(f'Server is down, Hence re-generating... {i}'):
+                i += 1
+                return GPT3_Generation(prompt, max_tokens=2000, i=i)
         else:
             st.error('GPT Server is down. Please try again later')
             return None
@@ -52,13 +50,11 @@ def GPT3_Generation(prompt, max_tokens, i):
 def generate_messages(prompt):
     try:
         print(prompt)
-        st.markdown('Generating messages...')
-        msgs = GPT3_Generation(prompt, max_tokens=2000, i=1)
-        if not msgs:
-            return
-        st.markdown('Generated, Predicting the scores of the messages...')
-        print('Generated!!!!!!!')
-        print(msgs)
+        with st.spinner('Generating messages...'):
+            msgs = GPT3_Generation(prompt, max_tokens=2000, i=1)
+            if not msgs:
+                return
+
         generated_messages = []
         sentences = re.split('^\d+\.+ ', msgs, flags=re.M)
         for i, text in enumerate(sentences):
@@ -75,9 +71,12 @@ def generate_messages(prompt):
             'Overall Score \n(ZoomRx Industry Average is 59 %)': [],
             'Rank Percentile': []
         })
-        for msg in generated_messages:
-            df = df.append({'Message': msg, **predict_scores(msg)}, ignore_index=True)
+        with st.spinner('Predicting the scores for the messages generated...'):
+            for msg in generated_messages:
+                df = df.append({'Message': msg, **predict_scores(msg)}, ignore_index=True)
+
         return df.sort_values('Overall Score \n(ZoomRx Industry Average is 59 %)', ascending=False)
+
     except:
         import traceback
         traceback.print_exc()
@@ -100,9 +99,10 @@ def predict_scores(message):
         data["%Believable"] = data["%Believable"].astype(float)
         data["%Differentiation"] = data["%Differentiation"].astype(float)
         data["%Motivation"] = data["%Motivation"].astype(float)
-        data["Final_Score"] = np.cbrt(data["%Believable"] * data["%Differentiation"] * data["%Motivation"])
+        data["Final_Score"] = np.cbrt(
+            data["%Believable"] * data["%Differentiation"] * data["%Motivation"])
         percentile = scipy.stats.percentileofscore(data["Final_Score"], final_score)
-        return percentile
+        return str(int(percentile))
 
     b_model, m_model, d_model, emb_model = load_models()
     word_count = len(str(message).split(" "))
@@ -115,12 +115,13 @@ def predict_scores(message):
     X_test = [SEmbeddings.tolist() + [
         word_count, char_count, sentence_count,
         avg_word_length, avg_sentence_lenght, sentiment]]
-    B_score, M_Score, D_Score = b_model.predict(X_test)[0], m_model.predict(X_test)[0], d_model.predict(X_test)[0]
+    B_score, M_Score, D_Score = b_model.predict(X_test)[0], m_model.predict(X_test)[
+        0], d_model.predict(X_test)[0]
     overall_score = np.cbrt(B_score * M_Score * D_Score)
     return {
         'Believability \n(ZoomRx Industry Average is 63 %)': round_off_score(B_score),
         'Differentiation \n(ZoomRx Industry Average is 55 %)': round_off_score(D_Score),
         'Motivation \n(ZoomRx Industry Average is 59 %)': round_off_score(M_Score),
         'Overall Score \n(ZoomRx Industry Average is 59 %)': round_off_score(overall_score),
-        'Rank Percentile': int(calc_percentile(overall_score))
+        'Rank Percentile': calc_percentile(overall_score)
     }
