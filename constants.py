@@ -7,4 +7,4 @@ BENCHMARKS = {
     "Overall_Score": "59 %"
 }
 IMAGE = Image.open('input_files/logo.png')
-GPT3_API_KEY = "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"
+GPT3_API_KEY = "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"
