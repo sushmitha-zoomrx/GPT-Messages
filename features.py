@@ -34,7 +34,7 @@ def load_page_with_components(email):
                 st.markdown(constants.HIDE_TABLE_ROW_INDEX, unsafe_allow_html=True)
                 st.table(res)
                 st.markdown(constants.PERCENTILE_TEXT)
-                constants.GSHEET.append_table(values=[f'{email}', prompt, res.to_string()])
+                constants.GSHEET.append_table(values=[f'{email[0]}', prompt, res.to_string()])
             else:
                 st.markdown('Try with appropriate instruction to generate message!')
-                constants.GSHEET.append_table(values=[f'{email}', prompt, 'No result'])
+                constants.GSHEET.append_table(values=[f'{email[0]}', prompt, 'No result'])

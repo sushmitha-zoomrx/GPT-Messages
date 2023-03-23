@@ -27,13 +27,16 @@ if not email:
         email_text_container.empty()
 
 
-def share_app():
-    subject = 'Check out this cool Streamlit app!'
-    body = f'Hi,\n\nI thought you might be interested in this Streamlit app: {constants.APP_URL} \n\nCheers!'
-    webbrowser.open(f'mailto:?subject={subject}&body={body}')
+def send_email(email):
+    email_subject = "Check out My Streamlit App!"
+    email_body = f"Hi,\n\nPlease check out this interesting Streamlit app I found: {constants.APP_URL}\n\nCheers!"
+    gmail_url = f"https://mail.google.com/mail/u/0/?view=cm&fs=1&tf=1&to={email}&su={email_subject}&body={email_body}"
+    # html = f'<a href="{gmail_url}" target="_blank"><button>Share this App!</button></a>'
+    html = f'<a href="{gmail_url}" target="_blank"><button type = "button" style = "background:#330933;color:white;height:30px;width:150px;">Share this App!</button></a>'
+    return html
 
 
 if email:
     load_page_with_components(email)
-    st.button(label='Share this App!', on_click=share_app, type='primary')
+    st.components.v1.html(send_email(email))
     st.caption(constants.FOOTER_TEXT)
