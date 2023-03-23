@@ -5,7 +5,7 @@ description = ""
 authors = ["sushmitha.jagannathan <sushmitha.jagannathan@zoomrx.com>"]
 
 [tool.poetry.dependencies]
-python = "~3.7.13"
+python = "~3.8"
 pandas = "~1.2.1"
 openai = "^0.18.1"
 sentence-transformers = "~2.2.0"
@@ -13,13 +13,11 @@ streamlit = ">=1.8.1"
 textblob = "~0.17.1"
 xgboost = "~1.6.0"
 regex = "^2022.10.31"
-seleniumbase = "^4.12.1"
-webdriver-manager = "^3.8.5"
-PyVirtualDisplay = "3.0"
 streamlit-authenticator = "^0.2.1"
 pyyaml = "^6.0"
 google-cloud-storage = "^2.7.0"
 pygsheets = "^2.0.6"
+streamlit-chat="^0.0.2.2"
 
 [tool.poetry.dev-dependencies]
 
