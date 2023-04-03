@@ -14,7 +14,7 @@ EMAIL_VALIDATOR = '^[a-z0-9]+[\._]?[ a-z0-9]+[@]\w+[. ]\w{2,3}$'
 LOGO = Image.open('input_files/logo.png')
 
 
-GPT3_API_KEY = "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"
+GPT3_API_KEY = "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"
 GPT3_PROMPT = """
 If the Text given below text asks for prediction of any score,  must give the "exact message" from the Text, for which score should be predicted. If Text is not asking for prediction, just answer to the Text. For creating or generating messages, if no count of required messages mentioned, generate 5 messages by default.
 
