@@ -1,3 +1,5 @@
+from string import Template
+
 import pandas as pd
 import pygsheets
 from google.oauth2 import service_account
@@ -15,36 +17,28 @@ class Constants(BaseSettings):
     DIFFERENTIATION_SCORE_PREDICTOR.load_model("config/models/0003.model")
     EMBEDDING_MODEL = SentenceTransformer('distilbert-base-nli-mean-tokens')
     CSV_DATA = pd.read_csv('config/input_files/data.csv')
-    # GPT3_API_KEY = "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"
-    GPT3_API_KEY = "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"
-    GPT3_PROMPT = """
-    If the Text given below text asks for prediction of any score,  must give the "exact message" from the Text, for which score should be predicted. If Text is not asking for prediction, just answer to the Text. For creating or generating messages, if no count of required messages mentioned, generate 5 messages by default.
+    GPT_API_KEY = "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"
+    GPT_PROMPT = Template("""
+    Please focus on the question intent closely. Based on he below questions, give me the appropriate output:
+    1. If the Question is asking for messages generation, give me a python dictionary:
+    {"messages":["messages that are generated for given question, give them as a list of strings in python format, without any numberings"],
+    "category": 1 (To indicate that it is falling into this category)
 
-    Text:
-    Predict the score of Fight NSCLC with OPDIVO + YERVOY and platinum-based chemotherapy and live longer.
-    Output:
-    Fight NSCLC with OPDIVO + YERVOY and platinum-based chemotherapy and live longer.
+    2. If the Question is asking for messages score prediction, give me a python dictionary:
+    {"messages":["Extract actual messages(given inside "") that are to be predicted from the given question, must not generate additional text other than the messages given in the question"],
+    "category": 2 (To indicate that it is falling into this category)
 
-    Text:
-    Create 2 messages for Opdivo in NSCLC using: In 14.1 months, half the people were alive on OPDIVO + YERVOY and platinum-based chemotherapy
-    Output:
-    1. Improve your outlook with OPDIVO + YERVOY and platinum-based chemotherapy. In 14.1 months, half the people were living longer and stronger.
-    2.  Give yourself the best chance of beating non-small cell lung cancer with OPDIVO + YERVOY and platinum-based chemotherapy. In 14.1 months, half the people saw long-term survival.
+    3. If it doesnot fall into the above mentioned category, Just answer to the question and give me output in similar format, as mentioned below:
+    {
+    "messages": ["actual answer"],
+    "category": 3 (To indicate that it is falling into this category)
+    }
 
-    Text:
-    What is the prediction score of cabometyx + opdivo offers a balance of data
-    Output:
-    cabometyx + opdivo offers a balance of data
-
-    Text:
-    Predict the score of "Our goal is to help make AMJEVITA onboarding seamless"
-    Output:
-    Our goal is to help make AMJEVITA onboarding seamless
-
-    Text:
-    {input}
-    Output:
-    """
+    If the ask is not clear, ask them the rephrase the question saying, "The scope of this tool is to create/predict scores for messages. Please rephrase your question accordingly to help you on your ask."
+    
+    Input Question:
+    $question
+    """)
     PERCENTILE_TEXT = (
         "To improve its performance, use precise messages with data & qualifiers as relevant."
         "[Read more>>](https://learnmore.zoomrx.com/pet-registration)"
