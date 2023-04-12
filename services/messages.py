@@ -1,3 +1,4 @@
+import json
 import re
 
 import numpy as np
@@ -12,15 +13,16 @@ from utilities.gsheets import log_to_gsheets
 
 
 class MessagesService():
-    def GPT3_Generation(self, prompt, max_tokens, i):
+    def GPT_Generation(self, prompt, max_tokens, i):
         ic()
-        openai.api_key = constants.GPT3_API_KEY
+        openai.api_key = constants.GPT_API_KEY
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                temperature=0.1,
+                model="gpt-4",
+                temperature=1,
                 messages=[
-                    {"role": "user", "content": constants.GPT3_PROMPT.format(input=prompt)},
+                    {"role": "user", "content": constants.GPT_PROMPT.substitute(
+                        {'question': prompt})},
                 ],
                 max_tokens=max_tokens
             )
@@ -28,7 +30,7 @@ class MessagesService():
         except Exception as e:
             if i <= 5 and 'server had an error' in str(e):
                 ic(e)
-                return self.GPT3_Generation(prompt, max_tokens=max_tokens, i=i)
+                return self.GPT_Generation(prompt, max_tokens=max_tokens, i=i)
             else:
                 ic(e)
                 return
@@ -38,19 +40,16 @@ class MessagesService():
     def generate_messages(self, email, prompt):
         try:
             print(prompt)
-            msgs = self.GPT3_Generation(prompt, max_tokens=1000, i=1)
-            if not msgs:
+            response = json.loads(self.GPT_Generation(prompt, max_tokens=1000, i=1))
+            if not response:
                 ic()
                 return
+            if response['category'] == 3:
+                return {
+                    'data': '\n'.join(response['messages'])
+                }
 
-            generated_messages = []
-            print(msgs)
-            sentences = re.split('\d+\.+ ', msgs, flags=re.M)
-            ic(sentences)
-            for i, text in enumerate(sentences):
-                msg = text.strip()
-                if len(msg) > 5:
-                    generated_messages.append(msg)
+            generated_messages = response['messages']
             print('List of msgs : ')
             print(generated_messages)
             df = pd.DataFrame({
@@ -67,8 +66,6 @@ class MessagesService():
                     ignore_index=True
                 )
             df = df.sort_values('Overall Score', ascending=False)
-            print(df)
-            df.to_csv('output.csv', index=False)
             log_to_gsheets(email, prompt, df)
             return {
                 'data': self.format_df(df)

@@ -8,11 +8,11 @@ router = APIRouter()
 
 
 @router.post(
-    '/',
+    '',
     response_model=MessagesResponseModel
 )
 def list_messages(data: MessagesRequestModel):
     ic(data)
     res = messages_service.generate_messages(data.email, data.question)
-    print(res, type(res))
+    print(res)
     return res
