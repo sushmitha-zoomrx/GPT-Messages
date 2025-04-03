@@ -1,7 +1,6 @@
 __pycache__
 logs/
 myenv/
-config/input_files
 .mypy_cache
 .streamlit
 rough.py
