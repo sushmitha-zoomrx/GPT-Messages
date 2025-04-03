@@ -12,7 +12,8 @@ router = APIRouter()
     response_model=MessagesResponseModel
 )
 def list_messages(data: MessagesRequestModel):
-    ic(data)
-    res = messages_service.generate_messages(data.email, data.question)
-    print(res)
-    return res
+
+    res = messages_service.predict_scores(data.question)
+    return {
+        'data': res
+    }

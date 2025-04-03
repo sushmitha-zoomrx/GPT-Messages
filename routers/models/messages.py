@@ -1,8 +1,10 @@
 from pydantic import BaseModel
 
+from typing import Optional
+
 
 class MessagesRequestModel(BaseModel):
-    email: str
+    email: Optional[str] = "demo@example.com"
     question: str
 
 
