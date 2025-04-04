@@ -3,6 +3,7 @@ import json
 import os
 import csv
 import datetime
+from time import sleep
 import numpy as np
 import pandas as pd
 import scipy
@@ -12,6 +13,7 @@ from langchain.schema import HumanMessage
 
 from config.settings import constants
 from utilities.gsheets import log_to_gsheets
+
 
 class MessagesService():
 
@@ -30,12 +32,14 @@ class MessagesService():
                 openai_api_key=constants.GPT_API_KEY
             )
             formatted_prompt = constants.CHAT_GPT_PROMPT.substitute(message=message)
+            # print("PROMPT:\n", formatted_prompt)
             response = llm.invoke([HumanMessage(content=formatted_prompt)])
+            # print("Response content: \n", response.content)
+            # sleep(15)
             try:
                 features = json.loads(response.content)
             except json.JSONDecodeError:
                 ic("JSON parsing failed, attempting to extract JSON from response")
-                print(features)
                 content = response.content
                 # Find JSON content between curly braces
                 json_start = content.find('{')
@@ -80,7 +84,7 @@ class MessagesService():
                 7: "metric_count",
                 8: "brand_name",
                 9: "specific_condition",
-                10:"action_words",
+                10: "action_words",
                 11: "action_words_count",
                 12: "unique_selling_proposition",
                 13: "tone",
@@ -164,7 +168,8 @@ class MessagesService():
                 else:
                     column_text = str(features[column])
 
-                column_vectors = self.get_tfidf_vectors(constants.TFIDF_VECTORIZER_LESS_FEATURES,column_text, column)
+                column_vectors = self.get_tfidf_vectors(
+                    constants.TFIDF_VECTORIZER_LESS_FEATURES, column_text, column)
                 test_data.update(column_vectors)
 
         message_vectors = self.get_tfidf_vectors(constants.TFIDF_VECTORIZER_MORE_FEATURES, message)
@@ -209,11 +214,13 @@ class MessagesService():
             feature_vector = []
             ordered_features_dict = {}  # For debugging purposes
 
-            for i, feature in enumerate(required_features):  # This preserves the exact order from constants.REQUIRED_FEATURES
+            # This preserves the exact order from constants.REQUIRED_FEATURES
+            for i, feature in enumerate(required_features):
                 # Use the feature value if available, otherwise use 0
                 value = test_data.get(feature, 0)
                 feature_vector.append(value)
-                ordered_features_dict[f"{i}_{feature}"] = value  # Store with index for order verification
+                # Store with index for order verification
+                ordered_features_dict[f"{i}_{feature}"] = value
 
             # Save ordered features for debugging if needed
             if hasattr(constants, 'DEBUG_MODE') and constants.DEBUG_MODE:
@@ -267,9 +274,8 @@ class MessagesService():
         """Resolve discrepancies between LLM and ML scores using weighted average based on confidence."""
 
         llm_confidence = llm_results.get('confidence', 2)
-        ml_confidence = ml_results.get('confidence', 1)
+        ml_confidence = ml_results.get('confidence', 3)
         return self.weighted_average(llm_score, ml_score, llm_confidence, ml_confidence)
-
 
     def integrate_analyses(self, llm_results, ml_results):
         def clamp_score(score):
@@ -379,7 +385,7 @@ class MessagesService():
         }
         ic(ml_scores)
 
-         # Get LLM analysis
+        # Get LLM analysis
         llm_results = self.analyze_with_llm(pharma_message, constants.EVALUATION_PROMPT)
         ic(llm_results)
         llm_scores = llm_results['scores']
@@ -387,10 +393,11 @@ class MessagesService():
             return "Something went wrong! Failed to produce the scores and analysis results. Please give us sometime "
 
         # Integrate results
-        final_results = self.integrate_analyses(llm_scores , ml_scores)
+        final_results = self.integrate_analyses(llm_scores, ml_scores)
 
-        overall_score = np.cbrt(final_results['Believability'] * final_results['Differentiation'] * final_results['Motivation'])
-        llm_results['scores'] =  {
+        overall_score = np.cbrt(
+            final_results['Believability'] * final_results['Differentiation'] * final_results['Motivation'])
+        llm_results['scores'] = {
             'Believability': [round_off_score(final_results['Believability'])],
             'Differentiation': [round_off_score(final_results['Differentiation'])],
             'Motivation': [round_off_score(final_results['Motivation'])],
@@ -466,5 +473,6 @@ class MessagesService():
             html_parts.append("</ul>")
 
         return "\n".join(html_parts)
+
 
 messages_service = MessagesService()
