@@ -1,9 +1,12 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from io import StringIO
 import re
 import json
 import os
 import csv
 import datetime
 from time import sleep
+from fastapi import UploadFile
 import numpy as np
 import pandas as pd
 import scipy
@@ -306,7 +309,7 @@ class MessagesService():
 
         return integrated_results
 
-    def log_predict_scores(self, user_input, gpt_output, ml_scores, llm_scores, final_results):
+    def log_predict_scores(self, user_input, email, gpt_output, ml_scores, llm_scores, final_results):
         """
         Log prediction data to a single CSV file with columns:
         [timestamp, user_input, GPT outputs, ml_scores, llm_scores, final_results]
@@ -314,6 +317,7 @@ class MessagesService():
         Args:
             user_input (str): The user's input message
             gpt_output (dict): The extracted features from GPT
+            email (str): The user's email
             ml_scores (dict): The machine learning model scores
             llm_scores (dict): The LLM scores before integration
             final_results (dict): The final integrated results
@@ -334,6 +338,7 @@ class MessagesService():
         row_data = {
             'timestamp': timestamp,
             'user_input': user_input,
+            'email': email,
             'gpt_outputs': json.dumps(gpt_output, ensure_ascii=False),
             'ml_scores': json.dumps(ml_scores, ensure_ascii=False),
             'llm_scores': json.dumps(llm_scores, ensure_ascii=False),
@@ -354,20 +359,21 @@ class MessagesService():
         except Exception as e:
             ic(f"Error logging prediction data: {str(e)}")
 
-    def predict_scores(self, message):
-        def round_off_score(val):
-            val = "{:.1f} %".format(val)
-            return val
+    def round_off_score(self, val):
+        val = "{:.1f} %".format(val)
+        return val
 
-        def calc_percentile(final_score):
-            data = constants.CSV_DATA.copy(deep=True)
-            data["Believability"] = data["Believability"].astype(float)
-            data["Differentiation"] = data["Differentiation"].astype(float)
-            data["Motivation"] = data["Motivation"].astype(float)
-            data["Final_Score"] = np.cbrt(
-                data["Believability"] * data["Differentiation"] * data["Motivation"])
-            percentile = scipy.stats.percentileofscore(data["Final_Score"], final_score)
-            return str(int(percentile))
+    def calc_percentile(self, final_score):
+        data = constants.CSV_DATA.copy(deep=True)
+        data["Believability"] = data["Believability"].astype(float)
+        data["Differentiation"] = data["Differentiation"].astype(float)
+        data["Motivation"] = data["Motivation"].astype(float)
+        data["Final_Score"] = np.cbrt(
+            data["Believability"] * data["Differentiation"] * data["Motivation"])
+        percentile = scipy.stats.percentileofscore(data["Final_Score"], final_score)
+        return str(int(percentile))
+
+    def predict_scores(self, message, email):
 
         features = self.extract_features_from_gpt(message)
         pharma_message = features.get('message', message)
@@ -398,15 +404,16 @@ class MessagesService():
         overall_score = np.cbrt(
             final_results['Believability'] * final_results['Differentiation'] * final_results['Motivation'])
         llm_results['scores'] = {
-            'Believability': [round_off_score(final_results['Believability'])],
-            'Differentiation': [round_off_score(final_results['Differentiation'])],
-            'Motivation': [round_off_score(final_results['Motivation'])],
-            'Overall Effectiveness': [round_off_score(overall_score)],
-            'Rank Percentile': [calc_percentile(overall_score)]
+            'Believability': [self.round_off_score(final_results['Believability'])],
+            'Differentiation': [self.round_off_score(final_results['Differentiation'])],
+            'Motivation': [self.round_off_score(final_results['Motivation'])],
+            'Overall Effectiveness': [self.round_off_score(overall_score)],
+            'Rank Percentile': [self.calc_percentile(overall_score)]
         }
         # Log the prediction data
         self.log_predict_scores(
             user_input=message,
+            email=email,
             gpt_output=features,
             ml_scores=ml_scores,
             llm_scores=llm_scores,
@@ -473,6 +480,118 @@ class MessagesService():
             html_parts.append("</ul>")
 
         return "\n".join(html_parts)
+
+    def predict_single_message(self, message, email):
+        """Helper function to predict scores for a single message"""
+        try:
+            features = self.extract_features_from_gpt(message)
+            pharma_message = features.get('message', message)
+            X_test = self.form_test_data(features, pharma_message)
+
+            B_score = constants.BELIEVABILITY_SCORE_PREDICTOR.predict(X_test["Believability"])[0]
+            M_Score = constants.MOTIVATION_SCORE_PREDICTOR.predict(X_test["Motivation"])[0]
+            D_Score = constants.DIFFERENTIATION_SCORE_PREDICTOR.predict(X_test["Differentiation"])[
+                0]
+
+            ml_scores = {
+                'Believability': float(B_score),
+                'Differentiation': float(D_Score),
+                'Motivation': float(M_Score),
+            }
+
+            overall_score = np.cbrt(
+                ml_scores['Believability'] * ml_scores['Differentiation'] * ml_scores['Motivation'])
+
+            final_scores = {
+                'Message': message,
+                'Believability': self.round_off_score(ml_scores['Believability']),
+                'Differentiation': self.round_off_score(ml_scores['Differentiation']),
+                'Motivation': self.round_off_score(ml_scores['Motivation']),
+                'Overall Effectiveness': self.round_off_score(overall_score),
+                'Rank Percentile': self.calc_percentile(overall_score)
+            }
+
+            # Log the prediction data
+            self.log_predict_scores(
+                user_input=message,
+                email=email,
+                gpt_output=features,
+                ml_scores=ml_scores,
+                llm_scores={},
+                final_results=final_scores
+            )
+
+            return final_scores
+        except Exception as e:
+            ic(f"Error processing message: {str(e)}")
+            return None
+
+    def predict_scores_in_bulk(self, messages, email):
+        """Predict scores for multiple messages in parallel"""
+        if not messages:
+            return pd.DataFrame()
+
+        results = []
+        # Use ThreadPoolExecutor for parallel processing
+        with ThreadPoolExecutor(max_workers=min(len(messages), 5)) as executor:
+            # Submit all messages for processing
+            future_to_message = {
+                executor.submit(self.predict_single_message, message, email): message
+                for message in messages
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_message):
+                result = future.result()
+                if result:
+                    results.append(result)
+
+        # Convert results to DataFrame
+        df = pd.DataFrame(results)
+
+        # Reorder columns if needed
+        column_order = [
+            'Message', 'Believability', 'Differentiation', 'Motivation',
+            'Overall Effectiveness', 'Rank Percentile'
+        ]
+        df = df.reindex(columns=column_order)
+
+        # Convert DataFrame to CSV string without index
+        try:
+            csv_data = df.to_csv(index=False)
+            # print(csv_data)
+            return csv_data
+        except Exception as e:
+            ic(f"Error converting to CSV data: {str(e)}")
+            return "Error converting to CSV data"
+
+    async def process_csv_file(self, file: UploadFile, email: str) -> str:
+        """
+        Process CSV file and return predictions as CSV string
+        """
+        try:
+            # Validate file type
+            if not file.filename.endswith('.csv'):
+                raise ValueError("Invalid file type. Only CSV files are allowed.")
+
+            # Read CSV content
+            contents = await file.read()
+            s = str(contents, 'utf-8')
+            data = StringIO(s)
+            df = pd.read_csv(data)
+
+            # Validate required column
+            if 'message' not in df.columns:
+                raise ValueError("CSV file must contain a 'message' column.")
+
+            # Process messages in bulk
+            messages = df['message'].tolist()
+            ic(messages)
+            return self.predict_scores_in_bulk(messages, email)
+
+        except Exception as e:
+            ic(f"Error processing CSV file: {str(e)}")
+            raise
 
 
 messages_service = MessagesService()

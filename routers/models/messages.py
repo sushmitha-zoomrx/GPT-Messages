@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-
+# from fastapi import UploadFile, File, Form
 from typing import Optional
 
 
@@ -10,3 +10,14 @@ class MessagesRequestModel(BaseModel):
 
 class MessagesResponseModel(BaseModel):
     data: str
+    error: Optional[str] = ""
+
+
+# class BulkMessagesRequestModel(BaseModel):
+#     file: UploadFile = File(...)
+#     email: Optional[str] = Form("demo@example.com")
+
+
+class BulkMessagesResponseModel(BaseModel):
+    success: bool
+    processedCsvData: str
