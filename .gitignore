@@ -1,5 +1,6 @@
 __pycache__
 logs/
+config/input_files/untracked
 myenv/
 .mypy_cache
 .streamlit
