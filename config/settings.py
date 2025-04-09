@@ -1,8 +1,9 @@
 from string import Template
 from typing import List, ClassVar
-
+import os
 import pandas as pd
 import pygsheets
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from pydantic_settings import BaseSettings
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -14,6 +15,10 @@ from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 import pickle
+
+
+# Load environment variables
+load_dotenv()
 
 
 class Constants(BaseSettings):
@@ -28,7 +33,7 @@ class Constants(BaseSettings):
     TFIDF_VECTORIZER_MORE_FEATURES: ClassVar[TfidfVectorizer] = TfidfVectorizer(
         max_features=200, stop_words="english")
     CSV_DATA: ClassVar[pd.DataFrame] = pd.read_csv('config/input_files/benchmark_data.csv')
-    GPT_API_KEY: str = "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"
+    GPT_API_KEY: str = os.getenv('OPENAI_API_KEY')
     GPT_PROMPT: ClassVar[Template] = Template("""
     Please focus on the question intent closely. Based on the below questions, give me the appropriate output:
     1. If the Question is asking for messages generation, give me a python dictionary:
@@ -315,7 +320,7 @@ Calculate the readability score of the message using either the Flesch-Kincaid G
     )
     LLM: ClassVar[ChatOpenAI] = ChatOpenAI(
         model_name="gpt-4o", temperature=1, max_tokens=800, verbose=True,
-        openai_api_key='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'
+        openai_api_key=os.getenv('OPENAI_API_KEY')
     )
     CHAT: ClassVar[ConversationChain] = ConversationChain(
         llm=LLM,

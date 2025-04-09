@@ -6,3 +6,4 @@ myenv/
 .streamlit
 rough.py
 rough_convo_mem.ipynb
+.env
