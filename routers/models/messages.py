@@ -6,6 +6,7 @@ from typing import Optional
 class MessagesRequestModel(BaseModel):
     email: Optional[str] = "demo@example.com"
     question: str
+    use_llm: Optional[bool] = False
 
 
 class MessagesResponseModel(BaseModel):

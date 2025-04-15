@@ -245,7 +245,7 @@ class MessagesService():
             # Create a ChatOpenAI instance with the appropriate model
             llm = ChatOpenAI(
                 model_name="gpt-4o",
-                temperature=0.2,
+                temperature=0,
                 openai_api_key=constants.GPT_API_KEY
             )
             formatted_prompt = context.substitute(message=message)
@@ -273,13 +273,6 @@ class MessagesService():
             return (llm_score + ml_score) / 2
         return (llm_score * llm_confidence + ml_score * ml_confidence) / total_confidence
 
-    def resolve_discrepancy(self, metric, llm_score, ml_score, llm_results, ml_results):
-        """Resolve discrepancies between LLM and ML scores using weighted average based on confidence."""
-
-        llm_confidence = llm_results.get('confidence', 2)
-        ml_confidence = ml_results.get('confidence', 3)
-        return self.weighted_average(llm_score, ml_score, llm_confidence, ml_confidence)
-
     def integrate_analyses(self, llm_results, ml_results):
         def clamp_score(score):
             """Clamp the score between 0 and 100."""
@@ -291,17 +284,9 @@ class MessagesService():
         for metric in ['Motivation', 'Believability', 'Differentiation']:
             llm_score = clamp_score(llm_results[metric.lower()])
             ml_score = clamp_score(ml_results[metric])
-
-            # Check for significant discrepancy
-            if abs(llm_score - ml_score) > constants.DISCREPANCY_THRESHOLD:
-                integrated_score = self.resolve_discrepancy(
-                    metric, llm_score, ml_score,
-                    llm_results, ml_results
-                )
-            else:
-                integrated_score = self.weighted_average(
-                    llm_score, ml_score,
-                )
+            integrated_score = self.weighted_average(
+                llm_score, ml_score,  constants.LLM_CONFIDENCE, constants.ML_CONFIDENCE
+            )
 
             integrated_results.update({
                 metric: integrated_score
@@ -373,12 +358,13 @@ class MessagesService():
         percentile = scipy.stats.percentileofscore(data["Final_Score"], final_score)
         return str(int(percentile))
 
-    def predict_scores(self, message, email):
-
+    def predict_scores(self, message, email, use_llm):
+        # Extract features and prepare test data
         features = self.extract_features_from_gpt(message)
         pharma_message = features.get('message', message)
         X_test = self.form_test_data(features, pharma_message)
 
+        # Get ML model predictions
         B_score, M_Score, D_Score = (
             constants.BELIEVABILITY_SCORE_PREDICTOR.predict(X_test["Believability"])[0],
             constants.MOTIVATION_SCORE_PREDICTOR.predict(X_test["Motivation"])[0],
@@ -391,14 +377,38 @@ class MessagesService():
         }
         ic(ml_scores)
 
-        # Get LLM analysis
+        if not use_llm:
+            # For ML-only predictions, calculate overall score and return simplified results
+            overall_score = np.cbrt(
+                ml_scores['Believability'] * ml_scores['Differentiation'] * ml_scores['Motivation'])
+            simplified_results = {
+                'scores': {
+                    'Believability': [self.round_off_score(ml_scores['Believability'])],
+                    'Differentiation': [self.round_off_score(ml_scores['Differentiation'])],
+                    'Motivation': [self.round_off_score(ml_scores['Motivation'])],
+                    'Overall Effectiveness': [self.round_off_score(overall_score)],
+                    'Rank Percentile': [self.calc_percentile(overall_score)]
+                }
+            }
+
+            # Log the prediction data
+            self.log_predict_scores(
+                user_input=message,
+                email=email,
+                gpt_output=features,
+                ml_scores=ml_scores,
+                llm_scores={},
+                final_results=simplified_results
+            )
+            return self.format_final_answer(simplified_results, use_llm)
+
+        # If use_llm is True, proceed with full analysis
         llm_results = self.analyze_with_llm(pharma_message, constants.EVALUATION_PROMPT)
         ic(llm_results)
-        llm_scores = llm_results['scores']
         if not llm_results:
             return "Something went wrong! Failed to produce the scores and analysis results. Please give us sometime "
 
-        # Integrate results
+        llm_scores = llm_results['scores']
         final_results = self.integrate_analyses(llm_scores, ml_scores)
 
         overall_score = np.cbrt(
@@ -410,6 +420,7 @@ class MessagesService():
             'Overall Effectiveness': [self.round_off_score(overall_score)],
             'Rank Percentile': [self.calc_percentile(overall_score)]
         }
+
         # Log the prediction data
         self.log_predict_scores(
             user_input=message,
@@ -420,15 +431,19 @@ class MessagesService():
             final_results=llm_results
         )
 
-        return self.format_final_answer(llm_results)
+        return self.format_final_answer(llm_results, use_llm)
 
-    def format_final_answer(self, llm_results):
+    def format_final_answer(self, llm_results, use_llm):
         """Format the final answer into an HTML string."""
         html_parts = []
 
         # Format scores
         if "scores" in llm_results and llm_results["scores"]:
-            html_parts.append("<h3>Scores:</h3>")
+            if use_llm:
+                html_parts.append(
+                    "<h4>Providing scores along with analysed comments...</h4>")
+
+            html_parts.append("<h3>Message Effectiveness Scores:</h3>")
             html_parts.append("<ul>")
             for key, value in llm_results["scores"].items():
                 html_parts.append(f"<li>{key}: {value}</li>")

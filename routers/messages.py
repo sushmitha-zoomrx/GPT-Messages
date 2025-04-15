@@ -15,7 +15,7 @@ router = APIRouter()
 )
 def list_messages(data: MessagesRequestModel):
 
-    res = messages_service.predict_scores(data.question, data.email)
+    res = messages_service.predict_scores(data.question, data.email, data.use_llm)
     return {
         'data': res
     }
